@@ -38,9 +38,15 @@ export async function transcribeAudio(audioFilePath, episodeDir = null, retries 
 
       console.log('Transcription completed');
 
+      // Whisper: $0.006 per minute
+      const durationSeconds = transcription.duration || 0;
+      const whisperCost = (durationSeconds / 60) * 0.006;
+
       const result = {
         text: transcription.text,
-        segments: transcription.segments || []
+        segments: transcription.segments || [],
+        durationSeconds,
+        whisperCost
       };
 
       // No longer saving individual chunk transcripts

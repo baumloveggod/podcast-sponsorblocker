@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Podcast Sponsorblocker – Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
+
+    header {
+      background: #1a1a1a;
+      border-bottom: 1px solid #333;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 18px; font-weight: 600; }
+    header .badge { font-size: 11px; background: #2a2a2a; border: 1px solid #444; padding: 2px 8px; border-radius: 99px; color: #888; }
+
+    .config-bar {
+      background: #141414;
+      border-bottom: 1px solid #222;
+      padding: 10px 24px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .config-bar label { font-size: 13px; color: #666; }
+    .config-bar input {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      color: #e0e0e0;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      width: 260px;
+    }
+    .config-bar input:focus { outline: none; border-color: #555; }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #444;
+      flex-shrink: 0;
+    }
+    .status-dot.ok { background: #22c55e; }
+    .status-dot.error { background: #ef4444; }
+
+    main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    button {
+      background: #222;
+      border: 1px solid #333;
+      color: #e0e0e0;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    button:hover { background: #2a2a2a; border-color: #555; }
+    button.primary { background: #1d4ed8; border-color: #2563eb; color: #fff; }
+    button.primary:hover { background: #2563eb; }
+    button.danger { background: #7f1d1d; border-color: #991b1b; color: #fca5a5; }
+    button.danger:hover { background: #991b1b; }
+    button.success { background: #14532d; border-color: #166534; color: #86efac; }
+    button.success:hover { background: #166534; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .count-badge { font-size: 12px; color: #666; margin-left: auto; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid #222;
+      color: #666;
+      font-weight: 500;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td { padding: 10px 12px; border-bottom: 1px solid #1a1a1a; vertical-align: middle; }
+    tr:hover td { background: #161616; }
+
+    .episode-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .episode-cover {
+      width: 48px; height: 48px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #222;
+      flex-shrink: 0;
+      border: 1px solid #333;
+    }
+    .episode-cover-placeholder {
+      width: 48px; height: 48px;
+      border-radius: 6px;
+      background: #1e1e1e;
+      border: 1px solid #2a2a2a;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .episode-info { min-width: 0; }
+    .episode-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #e0e0e0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 340px;
+    }
+    .episode-podcast {
+      font-size: 11px;
+      color: #666;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 340px;
+    }
+    .episode-host {
+      font-size: 11px;
+      color: #444;
+      font-family: monospace;
+      margin-top: 2px;
+    }
+    .episode-title a { color: #60a5fa; text-decoration: none; }
+    .episode-title a:hover { text-decoration: underline; }
+
+    .cost-badge {
+      font-size: 12px;
+      font-weight: 600;
+      color: #4ade80;
+      white-space: nowrap;
+    }
+    .cost-badge.zero { color: #444; }
+    .cost-detail { font-size: 11px; color: #555; margin-top: 2px; }
+
+    .actions { display: flex; gap: 6px; }
+
+    .empty { color: #444; text-align: center; padding: 40px; font-size: 14px; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.2s;
+      pointer-events: none;
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.ok { border-color: #166534; color: #86efac; }
+    .toast.err { border-color: #991b1b; color: #fca5a5; }
+
+    .spinner {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 2px solid #444;
+      border-top-color: #888;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .auto-badge { font-size: 11px; background: #1e3a5f; color: #93c5fd; padding: 1px 6px; border-radius: 4px; }
+
+    .whitelist-form {
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .whitelist-form label { font-size: 12px; color: #666; display: block; margin-bottom: 4px; }
+    .whitelist-form input {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      color: #e0e0e0;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .whitelist-form input:focus { outline: none; border-color: #555; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>🎙️</span>
+  <h1>Podcast Sponsorblocker</h1>
+  <span class="badge">Admin</span>
+  <div id="statusDot" class="status-dot" style="margin-left: auto;"></div>
+  <span id="statusText" style="font-size:12px;color:#555;">–</span>
+</header>
+
+<div class="config-bar">
+  <label>API Base URL</label>
+  <input id="apiBase" value="https://localhost:3015" />
+  <button onclick="checkHealth()">Verbinden</button>
+  <span id="autoTimer" style="font-size:12px;color:#555;margin-left:auto;"></span>
+</div>
+
+<main>
+  <!-- Analysierte Folgen -->
+  <div class="controls">
+    <strong style="font-size:15px;">Analysierte Folgen</strong>
+    <button onclick="loadAnalyzed()">↻ Laden</button>
+    <span class="count-badge" id="analyzedCount"></span>
+  </div>
+
+  <div id="analyzedTable">
+    <div class="empty">Klicke "Verbinden" um Daten zu laden.</div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid #1a1a1a;margin:32px 0;">
+
+  <!-- Requested URLs -->
+  <div class="controls">
+    <strong style="font-size:15px;">Angeforderte URLs</strong>
+    <button onclick="loadRequested()">↻ Laden</button>
+    <span class="count-badge" id="reqCount"></span>
+  </div>
+
+  <div id="requestedTable">
+    <div class="empty">Klicke "Verbinden" um Daten zu laden.</div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid #1a1a1a;margin:32px 0;">
+
+  <!-- Whitelist -->
+  <div class="controls">
+    <strong style="font-size:15px;">Whitelist</strong>
+    <button onclick="loadWhitelist()">↻ Laden</button>
+  </div>
+
+  <div class="whitelist-form">
+    <div>
+      <label>Name</label>
+      <input id="wlName" placeholder="z.B. Morgen Grauen" style="width:180px;" />
+    </div>
+    <div>
+      <label>Match (URL-Substring)</label>
+      <input id="wlMatch" placeholder="z.B. 103e68ee0" style="width:220px;" />
+    </div>
+    <button class="success" onclick="addWhitelist()">+ Zur Whitelist hinzufügen</button>
+  </div>
+
+  <div id="whitelistTable">
+    <div class="empty">–</div>
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  let autoInterval = null;
+  let countdown = 0;
+
+  function base() { return document.getElementById('apiBase').value.replace(/\/$/, ''); }
+  function headers() {
+    return { 'Content-Type': 'application/json' };
+  }
+
+  async function apiFetch(path, opts = {}) {
+    const url = base() + path;
+    const res = await fetch(url, { ...opts, headers: { ...headers(), ...(opts.headers || {}) } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  async function checkHealth() {
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    try {
+      const data = await apiFetch('/health');
+      dot.className = 'status-dot ok';
+      txt.textContent = 'Verbunden · ' + new Date(data.timestamp).toLocaleTimeString('de');
+      await loadAnalyzed();
+      await loadRequested();
+      await loadWhitelist();
+      startAutoRefresh();
+    } catch (e) {
+      dot.className = 'status-dot error';
+      txt.textContent = 'Fehler: ' + e.message;
+    }
+  }
+
+  function startAutoRefresh() {
+    if (autoInterval) clearInterval(autoInterval);
+    countdown = 30;
+    updateCountdown();
+    autoInterval = setInterval(() => {
+      countdown--;
+      updateCountdown();
+      if (countdown <= 0) {
+        countdown = 30;
+        loadRequested();
+      }
+    }, 1000);
+  }
+
+  function updateCountdown() {
+    document.getElementById('autoTimer').textContent =
+      `Auto-Refresh in ${countdown}s`;
+  }
+
+  async function loadAnalyzed() {
+    const el = document.getElementById('analyzedTable');
+    const countEl = document.getElementById('analyzedCount');
+    try {
+      const data = await apiFetch('/podcasts');
+      const podcasts = data.analyzed?.podcasts || [];
+      countEl.textContent = `${podcasts.length} Folgen`;
+      if (!podcasts.length) {
+        el.innerHTML = '<div class="empty">Noch keine Folgen analysiert.</div>';
+        return;
+      }
+      el.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Folge</th>
+              <th>Segmente</th>
+              <th>Kosten</th>
+              <th>Analysiert am</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${podcasts.map(p => {
+              const cost = p.cost_data ? JSON.parse(p.cost_data) : null;
+              const costHtml = cost
+                ? `<div class="cost-badge${cost.totalCost === 0 ? ' zero' : ''}">$${cost.totalCost.toFixed(4)}</div>
+                   <div class="cost-detail">Whisper $${cost.whisper.cost.toFixed(4)} · GPT $${cost.gpt.cost.toFixed(4)}</div>`
+                : `<div class="cost-badge zero">–</div>`;
+              return `
+              <tr>
+                <td id="ameta-${p.id}">
+                  <div class="episode-cell">
+                    <div class="episode-cover-placeholder">⏳</div>
+                    <div class="episode-info">
+                      <div class="episode-title"><a href="${p.url}" target="_blank">${p.title || p.url.split('/').pop().split('?')[0]}</a></div>
+                      <div class="episode-host">${new URL(p.url).hostname}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="color:#666;text-align:center;" id="segcount-${p.id}">–</td>
+                <td>${costHtml}</td>
+                <td style="color:#666;white-space:nowrap;">${p.created_at ? new Date(p.created_at).toLocaleString('de') : '–'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+
+      // Metadaten + Segmentanzahl asynchron laden
+      for (const p of podcasts) {
+        fetchMeta(p.url).then(meta => {
+          const cell = document.getElementById(`ameta-${p.id}`);
+          if (cell) cell.innerHTML = renderEpisodeCell(p, meta);
+        });
+        // Segmentanzahl aus /analyze holen
+        apiFetch(`/analyze?url=${encodeURIComponent(p.url)}`).then(res => {
+          const cell = document.getElementById(`segcount-${p.id}`);
+          if (cell) {
+            const count = res.segments?.length ?? '?';
+            cell.textContent = count === 0 ? '✓ Keine' : count;
+            cell.style.color = count === 0 ? '#4ade80' : '#f59e0b';
+          }
+        }).catch(() => {});
+      }
+    } catch (e) {
+      el.innerHTML = `<div class="empty" style="color:#ef4444;">Fehler: ${e.message}</div>`;
+    }
+  }
+
+  // Cache für Metadaten: url → { cover, podcastTitle, episodeTitle, host }
+  const metaCache = {};
+
+  async function fetchMeta(url) {
+    if (metaCache[url]) return metaCache[url];
+    const meta = { cover: null, podcastTitle: null, episodeTitle: null, host: null };
+    try {
+      meta.host = new URL(url).hostname;
+      const filename = url.split('/').pop().split('?')[0].replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+      meta.episodeTitle = decodeURIComponent(filename) || null;
+    } catch {}
+
+    // RSS via allorigins proxy holen
+    try {
+      const origin = new URL(url).origin;
+      const feedCandidates = [
+        `${origin}/feed`,
+        `${origin}/feed.xml`,
+        `${origin}/rss`,
+        `${origin}/rss.xml`,
+        `${origin}/podcast.xml`,
+        `${origin}/feed/podcast`,
+      ];
+      for (const feed of feedCandidates) {
+        try {
+          const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(feed)}`;
+          const res = await fetch(proxy, { signal: AbortSignal.timeout(4000) });
+          if (!res.ok) continue;
+          const json = await res.json();
+          if (!json.contents) continue;
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(json.contents, 'text/xml');
+          const channel = doc.querySelector('channel');
+          if (!channel) continue;
+          meta.podcastTitle = channel.querySelector('title')?.textContent?.trim() || null;
+          meta.cover = channel.querySelector('image url')?.textContent?.trim()
+            || channel.getElementsByTagNameNS('http://www.itunes.com/dtds/podcast-1.0.dtd', 'image')[0]?.getAttribute('href')
+            || null;
+          // Episode suchen anhand URL in enclosure
+          const items = [...doc.querySelectorAll('item')];
+          const match = items.find(item => {
+            const enc = item.querySelector('enclosure')?.getAttribute('url') || '';
+            return enc && url.includes(enc.split('?')[0].split('/').pop().split('.')[0]);
+          });
+          if (match) {
+            meta.episodeTitle = match.querySelector('title')?.textContent?.trim() || meta.episodeTitle;
+          }
+          break;
+        } catch {}
+      }
+    } catch {}
+
+    metaCache[url] = meta;
+    return meta;
+  }
+
+  function renderEpisodeCell(r, meta) {
+    const coverHtml = meta.cover
+      ? `<img class="episode-cover" src="${meta.cover}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="episode-cover-placeholder" style="display:none">🎙️</div>`
+      : `<div class="episode-cover-placeholder">🎙️</div>`;
+    const title = meta.episodeTitle || r.url.split('/').pop().split('?')[0];
+    const podcast = meta.podcastTitle || '–';
+    const host = meta.host || new URL(r.url).hostname;
+    return `
+      <div class="episode-cell">
+        ${coverHtml}
+        <div class="episode-info">
+          <div class="episode-title"><a href="${r.url}" target="_blank" title="${r.url}">${title}</a></div>
+          <div class="episode-podcast">${podcast}</div>
+          <div class="episode-host">${host}</div>
+        </div>
+      </div>`;
+  }
+
+  async function loadRequested() {
+    const el = document.getElementById('requestedTable');
+    const countEl = document.getElementById('reqCount');
+    try {
+      const data = await apiFetch('/podcasts/requested');
+      countEl.textContent = `${data.count} Einträge`;
+      if (!data.requested.length) {
+        el.innerHTML = '<div class="empty">Keine angeforderten URLs vorhanden.</div>';
+        return;
+      }
+
+      // Tabelle erstmal mit Skeleton rendern
+      el.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Episode</th>
+              <th>Anfragen</th>
+              <th>Zuletzt</th>
+              <th>Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.requested.map(r => `
+              <tr id="row-${r.id}">
+                <td id="meta-${r.id}"><div class="episode-cell"><div class="episode-cover-placeholder">⏳</div><div class="episode-info"><div class="episode-title" style="color:#444">${r.url.split('/').pop().split('?')[0]}</div><div class="episode-host" style="color:#333">${r.url}</div></div></div></td>
+                <td style="color:#666;text-align:center;">${r.request_count || 1}</td>
+                <td style="color:#666;white-space:nowrap;">${r.last_requested_at ? new Date(r.last_requested_at).toLocaleString('de') : '–'}</td>
+                <td>
+                  <div class="actions">
+                    <button class="primary" onclick="startAnalysis(${r.id}, '${escUrl(r.url)}')">▶ Analysieren</button>
+                    <button onclick="whitelistFromUrl(${r.id}, '${escUrl(r.url)}')">🛡 Whitelist</button>
+                    <button class="danger" onclick="denyUrl(${r.id})">✕ Deny</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      // Metadaten asynchron nachladen
+      for (const r of data.requested) {
+        fetchMeta(r.url).then(meta => {
+          const cell = document.getElementById(`meta-${r.id}`);
+          if (cell) cell.innerHTML = renderEpisodeCell(r, meta);
+        });
+      }
+    } catch (e) {
+      el.innerHTML = `<div class="empty" style="color:#ef4444;">Fehler: ${e.message}</div>`;
+    }
+  }
+
+  function escUrl(url) {
+    return url.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  }
+
+  async function denyUrl(id) {
+    try {
+      await apiFetch(`/podcasts/requested/${id}`, { method: 'DELETE' });
+      document.getElementById(`row-${id}`)?.remove();
+      toast('URL entfernt', 'ok');
+      loadRequested();
+    } catch (e) {
+      toast('Fehler: ' + e.message, 'err');
+    }
+  }
+
+  async function startAnalysis(id, url) {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Startet…';
+    try {
+      const data = await apiFetch('/process', {
+        method: 'POST',
+        body: JSON.stringify({ url })
+      });
+      toast(`Job gestartet: ${data.jobId}`, 'ok');
+      // nach start aus requested löschen
+      await apiFetch(`/podcasts/requested/${id}`, { method: 'DELETE' });
+      loadRequested();
+    } catch (e) {
+      toast('Fehler: ' + e.message, 'err');
+      btn.disabled = false;
+      btn.textContent = '▶ Analysieren';
+    }
+  }
+
+  async function whitelistFromUrl(id, url) {
+    let hostname = '';
+    try {
+      hostname = new URL(url).hostname;
+    } catch {}
+    const name = prompt('Name für den Host:', hostname);
+    if (!name) return;
+    const match = prompt('Match-String (URL-Substring):', hostname);
+    if (!match) return;
+    try {
+      await apiFetch('/whitelist', {
+        method: 'POST',
+        body: JSON.stringify({ name, match })
+      });
+      await apiFetch(`/podcasts/requested/${id}`, { method: 'DELETE' });
+      toast(`${name} zur Whitelist hinzugefügt`, 'ok');
+      loadRequested();
+      loadWhitelist();
+    } catch (e) {
+      toast('Fehler: ' + e.message, 'err');
+    }
+  }
+
+  async function loadWhitelist() {
+    const el = document.getElementById('whitelistTable');
+    try {
+      const data = await apiFetch('/whitelist');
+      if (!data.hosts.length) {
+        el.innerHTML = '<div class="empty">Whitelist ist leer.</div>';
+        return;
+      }
+      el.innerHTML = `
+        <table>
+          <thead><tr><th>Name</th><th>Match</th><th>Aktionen</th></tr></thead>
+          <tbody>
+            ${data.hosts.map(h => `
+              <tr>
+                <td>${h.name}</td>
+                <td><code style="font-family:monospace;color:#888;font-size:11px;">${h.match}</code></td>
+                <td>
+                  <button class="danger" onclick="removeWhitelist('${h.name.replace(/'/g, "\\'")}')">✕ Entfernen</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } catch (e) {
+      el.innerHTML = `<div class="empty" style="color:#ef4444;">Fehler: ${e.message}</div>`;
+    }
+  }
+
+  async function addWhitelist() {
+    const name = document.getElementById('wlName').value.trim();
+    const match = document.getElementById('wlMatch').value.trim();
+    if (!name || !match) { toast('Name und Match sind erforderlich', 'err'); return; }
+    try {
+      await apiFetch('/whitelist', { method: 'POST', body: JSON.stringify({ name, match }) });
+      document.getElementById('wlName').value = '';
+      document.getElementById('wlMatch').value = '';
+      toast(`${name} hinzugefügt`, 'ok');
+      loadWhitelist();
+    } catch (e) {
+      toast('Fehler: ' + e.message, 'err');
+    }
+  }
+
+  async function removeWhitelist(name) {
+    if (!confirm(`"${name}" aus der Whitelist entfernen?`)) return;
+    try {
+      await apiFetch(`/whitelist/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      toast(`${name} entfernt`, 'ok');
+      loadWhitelist();
+    } catch (e) {
+      toast('Fehler: ' + e.message, 'err');
+    }
+  }
+
+  function toast(msg, type = 'ok') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `toast ${type} show`;
+    setTimeout(() => el.classList.remove('show'), 3000);
+  }
+</script>
+</body>
+</html>

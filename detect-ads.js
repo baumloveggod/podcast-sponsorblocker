@@ -86,6 +86,8 @@ export async function detectAdSegments(transcription, episodeDir = null) {
 
   const allAdSegments = [];
   const allResponses = [];
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
 
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
@@ -148,7 +150,10 @@ Wenn keine Werbung gefunden wurde, gebe ein leeres Array zurück: {"segments": [
     const chunkResult = JSON.parse(response);
     const found = chunkResult.segments || [];
 
-    console.log(`  ${chunkLabel}: ${found.length} segment(s) found`);
+    totalInputTokens += completion.usage?.prompt_tokens || 0;
+    totalOutputTokens += completion.usage?.completion_tokens || 0;
+
+    console.log(`  ${chunkLabel}: ${found.length} segment(s) found (tokens: ${completion.usage?.total_tokens || '?'})`);
     allAdSegments.push(...found);
     allResponses.push({ chunkLabel, response });
   }
@@ -172,7 +177,11 @@ Wenn keine Werbung gefunden wurde, gebe ein leeres Array zurück: {"segments": [
     console.log(`✓ GPT response saved: ${responsePath}`);
   }
 
-  return { segments: mergedSegments };
+  // GPT-4-turbo: $10/1M input, $30/1M output
+  const gptCost = (totalInputTokens / 1_000_000) * 10 + (totalOutputTokens / 1_000_000) * 30;
+  console.log(`GPT cost: $${gptCost.toFixed(4)} (${totalInputTokens} in, ${totalOutputTokens} out tokens)`);
+
+  return { segments: mergedSegments, gptCost, inputTokens: totalInputTokens, outputTokens: totalOutputTokens };
 }
 
 /**
